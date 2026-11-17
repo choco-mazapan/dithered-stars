@@ -1,0 +1,5 @@
+{
+  "name": "dithered-stars",
+  "owner": { "name": "choco-mazapan" },
+  "plugins": [{ "name": "dithered-stars", "source": "./" }]
+}
