@@ -15,6 +15,24 @@ The preview page is drawn by the theme's own code in your browser, so it shows t
 
 </details>
 
+## Install
+
+At the prompt of a terminal session:
+
+```
+/plugin install dithered-stars --marketplace choco-mazapan/dithered-stars
+```
+
+Answer `y` to add the marketplace, then pick a scope.
+
+From a shell:
+
+```bash
+claude plugin install dithered-stars --marketplace choco-mazapan/dithered-stars
+```
+
+In the desktop app, where `/plugin` does not run: click + next to the prompt box, then Plugins, Add marketplace with `choco-mazapan/dithered-stars`, then Add plugin.
+
 ## What it does
 
 **The sky** (desktop and mobile apps)
@@ -44,21 +62,3 @@ The preview page is drawn by the theme's own code in your browser, so it shows t
 - In the terminal, a row of twinkling stars sits above the prompt, and the status line shows branch, model, context and the tightest limit.
 
 All motion is CSS inside the scene, and it stops when your system asks for reduced motion. Seasons and the moon's lit side assume the northern hemisphere.
-
-## Install
-
-At the prompt of a terminal session:
-
-```
-/plugin install dithered-stars --marketplace choco-mazapan/dithered-stars
-```
-
-Answer `y` to add the marketplace, then pick a scope.
-
-From a shell:
-
-```bash
-claude plugin install dithered-stars --marketplace choco-mazapan/dithered-stars
-```
-
-In the desktop app, where `/plugin` does not run: click + next to the prompt box, then Plugins, Add marketplace with `choco-mazapan/dithered-stars`, then Add plugin.
