@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dithered stars</title>
+<meta name="description" content="A live preview of the Dithered stars theme for the Claude apps: tonight's real moon, meteor showers, seasons and time of day, drawn in pixel dither and ASCII stars.">
+<style>
+  :root {
+    --ink: #090a12; --panel: rgba(14, 16, 27, .62); --line: #262b45;
+    --text: #e6e9f8; --muted: #9399bb; --accent: #7c8cff; --gold: #ffe7b0;
+    color-scheme: dark;
+  }
+  :root[data-mode="day"] {
+    --ink: #f1f4fc; --panel: rgba(246, 248, 254, .62); --line: #cfd7ee;
+    --text: #151a33; --muted: #575f85; --accent: #4453c9; --gold: #9a6a00;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--ink); color: var(--text);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace; }
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  main {
+    position: relative; min-height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; padding: 32px 16px 120px;
+  }
+  .panel {
+    width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: .02em; }
+  h1 span { color: var(--gold); }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); }
+  .msg { display: flex; gap: 10px; margin: 14px 0 0; }
+  .who { flex: none; width: 22px; color: var(--accent); }
+  .tool { color: var(--muted); }
+  .tool b { color: var(--gold); font-weight: normal; }
+  #tonight { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  code { font-size: 13px; background: color-mix(in srgb, var(--accent) 14%, transparent); padding: 1px 5px; border-radius: 4px; }
+  nav {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    width: min(640px, calc(100% - 32px));
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+  }
+  button, input {
+    font: inherit; font-size: 14px; color: var(--text); background: transparent;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  }
+  button:hover, button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  input[type="datetime-local"] { cursor: text; max-width: 100%; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<img id="sky" alt="A dithered night sky with ASCII stars, the real moon phase and two constellations">
+<main>
+  <section class="panel">
+    <h1><span>✦</span> Dithered stars</h1>
+    <p class="muted">A theme for the Claude desktop app. This page is drawn live by the theme's own code: the moon, the meteors, the tint and the constellations follow your clock.</p>
+
+    <div class="msg"><span class="who mono">›</span><div>Run the tests and tell me what fails.</div></div>
+    <div class="msg"><span class="who mono">✦</span><div>
+      <div class="tool mono"><b>*</b> Bash(npm test)</div>
+      <div>All 42 tests pass. Nothing to fix tonight.</div>
+    </div></div>
+
+    <div id="tonight" class="mono"></div>
+  </section>
+
+  <section class="panel">
+    <p><b>Install</b> in a terminal session:</p>
+    <p><code class="mono">/plugin install dithered-stars --marketplace choco-mazapan/dithered-stars</code></p>
+    <p class="muted">Desktop app: + beside the prompt → Plugins → Add marketplace <code class="mono">choco-mazapan/dithered-stars</code> → Add plugin. Source on <a href="https://github.com/choco-mazapan/dithered-stars">GitHub</a>.</p>
+  </section>
+</main>
+
+<nav aria-label="Preview controls">
+  <button id="new" type="button">New sky</button>
+  <button id="mode" type="button" aria-pressed="false">Day</button>
+  <button id="still" type="button" aria-pressed="false">Still</button>
+  <input id="when" type="datetime-local" aria-label="Show the sky at another time">
+  <button id="now" type="button">Now</button>
+</nav>
+
+<script type="module">
+  import { buildScene, CHOSEN_EXTRAS, pickPair, skyAt, SKY } from './hooks/scene.js'
+  import { activeShower, nextShower } from './hooks/sky-time.js'
+
+  const img = document.getElementById('sky')
+  const root = document.documentElement
+  const ask = query => { try { return matchMedia(query).matches } catch { return false } }
+
+  let at = Date.now()
+  let isLive = true
+  let pair = pickPair(Math.random, at)
+  let isDay = ask('(prefers-color-scheme: light)')
+  let isStill = ask('(prefers-reduced-motion: reduce)')
+  let url = null
+
+  const title = key => SKY[key].name.replace(/\b\w/g, c => c.toUpperCase())
+  const local = ms => {
+    const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000)
+    return d.toISOString().slice(0, 16)
+  }
+
+  function draw() {
+    const sky = skyAt(at)
+    // The scene follows the system's light or dark mode; the page's button decides here.
+    const svg = buildScene(CHOSEN_EXTRAS, { pair, sky, isQuiet: isStill })
+      .replace('@media (prefers-color-scheme:light){', isDay ? '@media all{' : '@media not all{')
+    const next = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+
+    img.src = next
+    if (url) URL.revokeObjectURL(url)
+    url = next
+
+    root.dataset.mode = isDay ? 'day' : 'night'
+    document.getElementById('mode').textContent = isDay ? 'Night' : 'Day'
+    document.getElementById('still').setAttribute('aria-pressed', String(isStill))
+    document.getElementById('when').value = local(at)
+
+    const shower = activeShower(at)
+    const coming = nextShower(at)
+    const meteors = shower ? `${shower.name} near their peak: the margins rain`
+      : coming ? `${coming.name} peak in ${coming.days} ${coming.days === 1 ? 'night' : 'nights'}` : ''
+    document.getElementById('tonight').innerHTML = [
+      `${title(pair[0])} · ${title(pair[1])}${sky.hasPleiades ? ' · the Pleiades' : ''}`,
+      `${sky.icon} ${sky.phase}, ${Math.round(sky.lit * 100)}% lit`,
+      meteors,
+      `${isDay ? 'day' : sky.part} sky`,
+    ].filter(Boolean).map(line => `<div>✦ ${line}</div>`).join('')
+  }
+
+  document.getElementById('new').onclick = () => {
+    const old = pair.join()
+    for (let i = 0; i < 10 && pair.join() === old; i++) pair = pickPair(Math.random, at)
+    draw()
+  }
+  document.getElementById('mode').onclick = () => { isDay = !isDay; draw() }
+  document.getElementById('still').onclick = () => { isStill = !isStill; draw() }
+  document.getElementById('when').onchange = e => {
+    const ms = Date.parse(e.target.value)
+    if (!Number.isNaN(ms)) { at = ms; isLive = false; pair = pickPair(Math.random, at); draw() }
+  }
+  document.getElementById('now').onclick = () => { at = Date.now(); isLive = true; draw() }
+
+  // Live: the sky checks the clock every ten minutes, as the theme does.
+  setInterval(() => { if (isLive) { at = Date.now(); draw() } }, 10 * 60 * 1000)
+  draw()
+</script>
+</body>
+</html>

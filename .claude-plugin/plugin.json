@@ -1,1 +1,1 @@
-{ "name": "dithered-stars", "version": "0.1.0", "description": "A dark night-sky look: dithered sky, crescent moon and twinkling ASCII stars" }
+{ "name": "dithered-stars", "version": "0.3.0", "description": "A dark night-sky look: dithered sky, crescent moon, twinkling ASCII stars, a night watch pane for usage and limits, and a sky that follows the real moon, showers, seasons and time of day", "types": "./types/index.d.ts" }
