@@ -656,22 +656,6 @@ function lighthouse({ extras = [] } = {}) {
   return `<g shape-rendering="crispEdges">${sea}${beamBack}${tower}${room}${beamFront}</g>${rock}`
 }
 
-// The beam's sweep: its reach is the cosine of a steady turn, so it slows only
-// at the far ends and passes the tower (pointing at you, or away) at full
-// speed. Eased keyframes would pause at every one, the middle ones included.
-function beamKeyframes(steps = 36) {
-  let frames = ''
-
-  for (let i = 0; i <= steps; i++) {
-    const reach = Math.cos((i / steps) * 2 * Math.PI)
-    const scale = Math.round(reach * 100) / 100
-
-    frames += `${round((i / steps) * 100)}%{transform:scaleX(${scale === 0 ? 0.01 : scale});opacity:${Math.round((0.35 + 0.35 * Math.abs(reach)) * 100) / 100}}`
-  }
-
-  return `@keyframes beam{${frames}}`
-}
-
 // 5. Denser edges: more twinkling at both sides, thinning toward the middle.
 // Where the margins' figures stand: busy stars keep out, so the figures read.
 const pad = (box, by) => ({ x: box.x - by, y: box.y - by, w: box.w + 2 * by, h: box.h + 2 * by + 40 })
@@ -712,7 +696,7 @@ const EXTRA_STYLE = `
 .cl{animation:cl 6s ease-in-out infinite}@keyframes cl{0%,100%{stroke-opacity:.45}50%{stroke-opacity:.8}}
 .cs text{animation:cs 4.2s ease-in-out infinite}@keyframes cs{0%,100%{fill-opacity:1}50%{fill-opacity:.5}}
 .ff text{animation:ff 7s ease-in-out infinite}@keyframes ff{0%,100%{transform:translate(0,0);fill-opacity:0}30%{fill-opacity:.9}60%{transform:translate(6px,-22px);fill-opacity:.2}80%{fill-opacity:.8}}
-.beam{animation:beam 9s linear infinite}${beamKeyframes()}
+/* Linear: the beam sweeps at one steady rate, never easing at the sides or the middle. */.beam{animation:beam 9s linear infinite}@keyframes beam{0%{transform:scaleX(1);opacity:.7}25%{transform:scaleX(.01);opacity:.35}50%{transform:scaleX(-1);opacity:.7}75%{transform:scaleX(.01);opacity:.35}100%{transform:scaleX(1);opacity:.7}}
 .bf{opacity:0;animation:bf 9s steps(1) infinite}@keyframes bf{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
 .bb{animation:bb 9s steps(1) infinite}@keyframes bb{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
 .lamp text{animation:cs 2.2s ease-in-out infinite}
