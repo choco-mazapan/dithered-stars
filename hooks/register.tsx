@@ -1,19 +1,15 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, ThemeSetArgs } from 'claude-code'
+import type { Register } from 'claude-code'
 
 import { registerChat } from './chat.tsx'
-import { makeColors } from './make-colors.js'
 import { registerNight, startNight } from './night-pane.tsx'
-import { CONSTELLATIONS, pickPair, SCENE_ALT, sceneFor, SKY } from './scene.js'
+import { isPair, paint, problems, scene, sessionScene } from './paint.ts'
+import { pickPair, SCENE_ALT, SKY } from './scene.js'
 import type { Constellation, SkyNow } from './scene.js'
 import { activeShower, nextShower } from './sky-time.js'
 
-// The session's two constellations, picked once when it starts. Kept in the
-// session's state, so a reload of the mod draws the same sky.
+// The session's two constellations (paint.ts picks and keeps them).
 const sky = atom({ plugin: 'dithered-stars', key: 'sky' } as const, null)
-
-// The backdrop this module drew last; rebuilt from `sky` after a reload.
-let scene: { svg: string; key: string; sky: SkyNow } | null = null
 
 // The timer that keeps the sky in step with the clock; one per module load.
 let refresh: { cancel: () => void } | null = null
@@ -21,85 +17,6 @@ let refresh: { cancel: () => void } | null = null
 // How often the sky checks the clock: the moon, the tint and the shower move
 // slowly, and a rebuild that comes out the same sets nothing.
 const REFRESH_MS = 10 * 60 * 1000
-
-const isPair = (value: unknown): value is [Constellation, Constellation] =>
-  Array.isArray(value) &&
-  value.length === 2 &&
-  value.every(one => (CONSTELLATIONS as readonly unknown[]).includes(one))
-
-/**
- * This session's sky as of now: the pair it picked (or a new pick of the
- * season's, saved for next time), tonight's moon, shower and tint.
- */
-async function sessionScene($: EngineInterface) {
-  const [kept, isQuiet, at] = await Promise.all([
-    read($, sky),
-    read($, { plugin: 'dithered-stars', key: 'isQuiet' } as const),
-    $.clock.now(),
-  ])
-  const pair = isPair(kept) ? kept : pickPair(Math.random, at)
-
-  if (!isPair(kept)) {
-    await update($, sky, () => pair)
-  }
-  scene = sceneFor(pair, { at, isQuiet })
-
-  return scene
-}
-
-// Night-sky ink for every surface, starlight for the words; in light mode, a
-// pale day sky with ink-blue words. The code colors follow: nord by night.
-const { theme, problems } = makeColors({
-  label: 'Dithered stars',
-  roles: { accent: '#7c8cff', danger: '#e5484d', success: '#4cc38a', warning: '#e2a336', pro: '#b58cf5' },
-  dark: {
-    gray: {
-      anchors: {
-        'surface-0': '#090a12',
-        'surface-1': '#0e101b',
-        'surface-2': '#131625',
-        'surface-3': '#171b2c',
-        'text-primary': '#e6e9f8',
-        'text-secondary': '#bcc2de',
-        'text-muted': '#9399bb',
-      },
-    },
-  },
-  light: {
-    roles: { accent: '#4453c9' },
-    gray: {
-      anchors: {
-        'surface-0': '#f1f4fc',
-        'surface-1': '#f6f8fe',
-        'surface-2': '#fcfdff',
-        'surface-3': '#fcfdff',
-        'text-primary': '#151a33',
-        'text-secondary': '#3a4266',
-        'text-muted': '#575f85',
-      },
-    },
-  },
-  codeTheme: { dark: 'nord', light: 'github-light' },
-})
-
-// No blur: a dither is all hard pixels, and frosting would smear it to a haze.
-// The panels' own color, at this opacity, is what keeps the words in front.
-const lookFor = (key: string): ThemeSetArgs => ({
-  colors: theme,
-  backdrop: { scene: key, glass: { blur: 0, opacity: 0.62 } },
-})
-
-/** Builds the sky as of now and sets it, unless it's the one already up. */
-async function paint($: EngineInterface, isForced = false) {
-  const before = scene?.key
-  const drawn = await sessionScene($)
-
-  if (isForced || drawn.key !== before) {
-    await $.theme.set(lookFor(drawn.key))
-  }
-
-  return drawn
-}
 
 const title = (key: Constellation) => SKY[key].name.replace(/\b\w/g, c => c.toUpperCase())
 

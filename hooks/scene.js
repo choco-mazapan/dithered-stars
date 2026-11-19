@@ -35,6 +35,9 @@ const TINTS_BY_PART = {
 
 // What the sky is doing for the build under way; set at each build.
 let now = { part: 'night', lit: 0.25, isWaxing: true, shower: null, hasPleiades: true }
+// How hard the session is spending its usage, 0 to 1 in quarter steps: the
+// more it spends, the more stars fall in the margins, and the faster.
+let pace = 0
 const MOON_DIM = '#59608f'
 const MOON_LIT = '#e3e7ff'
 
@@ -523,8 +526,10 @@ function meteorShower() {
   let out = ''
   let css = ''
 
-  // Near a real shower's peak, the margins rain.
-  const count = now.shower === null ? 10 : 26
+  // Usage sets the rate: 10 meteors at rest, up to 30 at a limit's edge, each
+  // returning sooner. Near a real shower's peak, 16 more rain on top.
+  const count = 10 + Math.round(pace * 20) + (now.shower === null ? 0 : 16)
+  const slower = 1.5 - pace
 
   for (let i = 0; i < count; i++) {
     const isLeft = i % 2 === 0
@@ -533,8 +538,8 @@ function meteorShower() {
     const y = Math.round(h.between(-40, 380))
     // Left ones fall toward the left edge, right ones toward the right.
     const dx = isLeft ? -260 : 260
-    const seconds = round(h.between(5, 11))
-    const delay = round(h.between(0, 11))
+    const seconds = round(h.between(5, 11) * slower)
+    const delay = round(h.between(0, 11) * slower)
 
     css += `.ms${i}{animation:ms${i} ${seconds}s steps(36) -${delay}s infinite}@keyframes ms${i}{0%{transform:translate(0,0);opacity:1}14%{transform:translate(${dx}px,470px);opacity:0}100%{transform:translate(${dx}px,470px);opacity:0}}`
     out += `<g class="${h.pick(['w', 'w', 'u'])}" transform="translate(${x} ${y})" font-size="16"><g class="ms${i}">${trail(isLeft ? 1 : -1, isLeft ? '/' : '\\')}</g></g>`
@@ -544,7 +549,39 @@ function meteorShower() {
 }
 
 // 3. A horizon: hills and pines along the foot of both margins, with fireflies.
-function pine(x, base, height) {
+// The ridges, each as its two quadratic curves: [start, control, end].
+const RIDGES = [
+  [[[0, 812], [110, 760], [220, 792]], [[220, 792], [330, 824], [470, 846]]],
+  [[[1130, 852], [1250, 776], [1372, 806]], [[1372, 806], [1494, 836], [1600, 784]]],
+]
+
+/** Where the ridge meets the sky at `x`: walks the curve to the nearest point. */
+function ridgeY(x) {
+  let best = { dx: Infinity, y: 1000 }
+
+  for (const ridge of RIDGES) {
+    for (const [[x0, y0], [cx, cy], [x1, y1]] of ridge) {
+      for (let i = 0; i <= 64; i++) {
+        const t = i / 64
+        const px = (1 - t) ** 2 * x0 + 2 * (1 - t) * t * cx + t ** 2 * x1
+        const dx = Math.abs(px - x)
+
+        if (dx < best.dx) {
+          best = { dx, y: (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cy + t ** 2 * y1 }
+        }
+      }
+    }
+  }
+
+  return best.y
+}
+
+// A pine standing on the ridge at `x`: three tiers of needles on a trunk.
+// `height` is the needles; the trunk below them shows, then sinks into the hill.
+function pine(x, height) {
+  const ground = ridgeY(x)
+  const trunk = Math.max(8, height * 0.24)
+  const base = ground - trunk
   const w = height * 0.42
   const tiers = [0, 0.3, 0.55].map(at => {
     const top = base - height + at * height
@@ -552,22 +589,21 @@ function pine(x, base, height) {
 
     return `M${round(x)} ${round(top)}L${round(x + half)} ${round(top + height * 0.42)}L${round(x - half)} ${round(top + height * 0.42)}Z`
   })
+  const half = Math.max(3, Math.round(height * 0.04))
+  const from = round(base - 6)
+  const to = round(ground + 14)
 
   // Wound the same way as the hills, so the trunk adds to them, not cuts.
-  return tiers.join('') + `M${round(x - 3)} ${base}v-${round(height * 0.2)}h6v${round(height * 0.2)}z`
+  return tiers.join('') + `M${round(x - half)} ${to}L${round(x - half)} ${from}L${round(x + half)} ${from}L${round(x + half)} ${to}Z`
 }
 
 function horizon() {
   const h = helpers(7003)
   const left = 'M0 1000L0 812Q110 760 220 792T470 846L470 1000Z'
   const right = 'M1130 1000L1130 852Q1250 776 1372 806T1600 784L1600 1000Z'
-  const trees =
-    [[48, 806, 92], [96, 796, 66], [150, 790, 110], [338, 832, 74], [392, 842, 96]]
-      .map(([x, base, height]) => pine(x, base, height))
-      .join('') +
-    [[1190, 840, 84], [1236, 822, 120], [1470, 798, 90], [1528, 792, 116], [1574, 790, 70]]
-      .map(([x, base, height]) => pine(x, base, height))
-      .join('')
+  const trees = [[48, 92], [96, 66], [150, 110], [338, 74], [392, 96], [1190, 84], [1236, 120], [1470, 90], [1528, 116], [1574, 70]]
+    .map(([x, height]) => pine(x, height))
+    .join('')
   let flies = ''
 
   for (let i = 0; i < 14; i++) {
@@ -601,7 +637,11 @@ function lighthouse({ extras = [] } = {}) {
   }
 
   const lampY = top - 16
-  const beam = `<g transform="translate(${x} ${lampY})"><g class="beam"><path d="M0 0L-330 -34L-330 34Z" fill="${dither('b', '#ffe7b0', 3)}"/><path d="M0 0L-170 -16L-170 16Z" fill="${dither('b', '#ffe7b0', 6)}"/></g></g>`
+  // One beam, drawn twice: behind the tower while it swings left to right,
+  // in front of it (lantern room and all) while it swings back.
+  const ray = `<path d="M0 0L-330 -34L-330 34Z" fill="${dither('b', '#ffe7b0', 3)}"/><path d="M0 0L-170 -16L-170 16Z" fill="${dither('b', '#ffe7b0', 6)}"/>`
+  const beamBack = `<g transform="translate(${x} ${lampY})"><g class="bb"><g class="beam">${ray}</g></g></g>`
+  const beamFront = `<g transform="translate(${x} ${lampY})"><g class="bf"><g class="beam">${ray}</g></g></g>`
   const room =
     `<rect x="${x - 18}" y="${top - 4}" width="36" height="6" fill="#1a1d33"/>` +
     `<rect x="${x - 13}" y="${lampY - 12}" width="26" height="22" fill="#0e101b" stroke="#59608f"/>` +
@@ -613,7 +653,7 @@ function lighthouse({ extras = [] } = {}) {
     ? ''
     : `<rect x="1130" y="${base + 30}" width="470" height="${1000 - base - 30}" fill="${dither('s', '#2a3270', 5)}"/>`
 
-  return `<g shape-rendering="crispEdges">${sea}${beam}${tower}${room}</g>${rock}`
+  return `<g shape-rendering="crispEdges">${sea}${beamBack}${tower}${room}${beamFront}</g>${rock}`
 }
 
 // 5. Denser edges: more twinkling at both sides, thinning toward the middle.
@@ -657,6 +697,8 @@ const EXTRA_STYLE = `
 .cs text{animation:cs 4.2s ease-in-out infinite}@keyframes cs{0%,100%{fill-opacity:1}50%{fill-opacity:.5}}
 .ff text{animation:ff 7s ease-in-out infinite}@keyframes ff{0%,100%{transform:translate(0,0);fill-opacity:0}30%{fill-opacity:.9}60%{transform:translate(6px,-22px);fill-opacity:.2}80%{fill-opacity:.8}}
 .beam{animation:beam 9s ease-in-out infinite}@keyframes beam{0%{transform:scaleX(1);opacity:.7}25%{transform:scaleX(.04);opacity:.35}50%{transform:scaleX(-1);opacity:.7}75%{transform:scaleX(.04);opacity:.35}100%{transform:scaleX(1);opacity:.7}}
+.bf{opacity:0;animation:bf 9s steps(1) infinite}@keyframes bf{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
+.bb{animation:bb 9s steps(1) infinite}@keyframes bb{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
 .lamp text{animation:cs 2.2s ease-in-out infinite}
 .ph{animation:ph 8s ease-in-out infinite}@keyframes ph{0%,100%{opacity:.55}50%{opacity:.95}}
 `.replace(/\n/g, '')
@@ -702,6 +744,7 @@ export function skyAt(ms) {
  */
 export function buildScene(extras = [], options = {}) {
   now = { ...skyAt(options.at ?? Date.now()), ...options.sky }
+  pace = Math.min(1, Math.max(0, options.pace ?? 0))
   random = makeRandom(20261115)
   patterns.clear()
   reserved = []
@@ -738,6 +781,11 @@ export function buildScene(extras = [], options = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><style>${style}</style>${defs}${body}</svg>`
 }
 
+/** A usage share, 0 to 1, as the scene's pace: quarter steps, so the sky redraws only a few times as usage climbs. */
+export function paceFor(share) {
+  return Number.isFinite(share) ? Math.round(Math.min(1, Math.max(0, share)) * 4) / 4 : 0
+}
+
 // Which margin extras the theme draws: pick from the names in EXTRAS.
 export const CHOSEN_EXTRAS = ['constellations', 'meteors', 'horizon', 'lighthouse', 'edges']
 
@@ -760,9 +808,9 @@ function fingerprint(text) {
  * The session's backdrop: the chosen extras, with `pair` as its two
  * constellations, left then right. The key carries the drawing's fingerprint.
  */
-export function sceneFor(pair, { at = Date.now(), isQuiet = false } = {}) {
+export function sceneFor(pair, { at = Date.now(), isQuiet = false, pace = 0 } = {}) {
   const sky = skyAt(at)
-  const svg = buildScene(CHOSEN_EXTRAS, { pair, sky, isQuiet })
+  const svg = buildScene(CHOSEN_EXTRAS, { pair, sky, isQuiet, pace: paceFor(pace) })
 
   return { svg, key: `dithered-stars-night-sky-${fingerprint(svg)}`, sky }
 }

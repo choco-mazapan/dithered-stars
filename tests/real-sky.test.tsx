@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { buildScene, CHOSEN_EXTRAS, pickPair, skyAt } from '../hooks/scene.js'
+import { buildScene, CHOSEN_EXTRAS, paceFor, pickPair, skyAt } from '../hooks/scene.js'
 import { activeShower, moonPhase, nextShower, season } from '../hooks/sky-time.js'
 
 // 2024-08-19 was a full moon, 2024-10-02 a new one; the Perseids peak 12 August.
@@ -95,4 +95,26 @@ test('the thinking line wears a star', async ($, on) => {
   expect(text.endsWith('… ✦')).toBe(true)
   expect(text.startsWith('Baking')).toBe(false)
   await ui.unmount()
+})
+
+test('usage sets the meteor rate; pines stand on trunks; the beam passes in front', () => {
+  const pair = ['cygnus', 'lyra'] as const
+  const count = (svg: string) => (svg.match(/class="ms\d+"/g) ?? []).length
+
+  // The pace comes in quarter steps, and more spent means more meteors.
+  expect(paceFor(0.1)).toBe(0)
+  expect(paceFor(0.62)).toBe(0.5)
+  expect(paceFor(Number.NaN)).toBe(0)
+  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 0 }))).toBe(10)
+  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 0.5 }))).toBe(20)
+  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 1 }))).toBe(30)
+
+  const svg = buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL) })
+  // Two copies of the beam: one before the tower, one after its lantern room.
+  const back = svg.indexOf('class="bb"')
+  const front = svg.indexOf('class="bf"')
+  const room = svg.indexOf('class="lamp"')
+  expect(back > 0 && back < room && room < front).toBe(true)
+  // The front copy shows for the swing back only.
+  expect(svg.includes('@keyframes bf{0%{opacity:0}50%{opacity:1}100%{opacity:1}}')).toBe(true)
 })

@@ -40,7 +40,8 @@ In the desktop app, where `/plugin` does not run: click + next to the prompt box
 - More meteors in the margins within two days of a major shower's peak (Quadrantids, Lyrids, Perseids, Leonids, Geminids and more).
 - A plum dusk, deep night and blue dawn by your local time; the sky rechecks every ten minutes.
 - Two real constellations each session, picked from those up in the evening that month, plus the Pleiades in their season.
-- Twinkling and flaring ASCII stars, shooting stars, pine hills with fireflies, and a lighthouse with a sweeping beam.
+- Twinkling and flaring ASCII stars, shooting stars, pine hills with fireflies, and a lighthouse whose beam sweeps behind the tower and back across its front.
+- The margins' meteors follow your usage: the more of your tightest rate limit (or, with none, your context window) the session has spent, the more stars fall, and the faster.
 - In light mode, a pale day sky with clouds and a daytime moon.
 - Panels are night-sky ink at 62% opacity with no blur, so the pixels stay sharp behind the words.
 

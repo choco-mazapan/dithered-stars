@@ -8,6 +8,7 @@ import type { EngineInterface, On, SessionRateLimit, SessionUsage } from 'claude
 import type { Limit, ToolCall, Usage } from '../types'
 import { celebrate, chimeIfLong, warnLimits } from './chat.tsx'
 import { span } from './night-clock.ts'
+import { followUsage } from './paint.ts'
 
 export const PANE = 'night-watch'
 const TITLE = 'Night watch'
@@ -211,6 +212,7 @@ export function registerNight(on: On) {
     const fresh = e.changed.includes('context') ? await readUsage($).catch(() => e) : e
     const now = toUsage({ ...fresh, rateLimits: e.rateLimits, cost: e.cost })
     await update($, usage, () => now)
+    await followUsage($, now).catch(() => undefined)
     await refreshStatus($)
     await warnLimits($, now.limits).catch(() => undefined)
 
