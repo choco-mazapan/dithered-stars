@@ -101,13 +101,17 @@ test('usage sets the meteor rate; pines stand on trunks; the beam passes in fron
   const pair = ['cygnus', 'lyra'] as const
   const count = (svg: string) => (svg.match(/class="ms\d+"/g) ?? []).length
 
-  // The pace comes in quarter steps, and more spent means more meteors.
+  // The pace comes in quarter steps; more spent means meteors fall more often,
+  // never more of them.
   expect(paceFor(0.1)).toBe(0)
   expect(paceFor(0.62)).toBe(0.5)
   expect(paceFor(Number.NaN)).toBe(0)
-  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 0 }))).toBe(10)
-  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 0.5 }))).toBe(20)
-  expect(count(buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 1 }))).toBe(30)
+  const cycle = (svg: string) => Number(svg.match(/\.ms0\{animation:ms0 ([\d.]+)s/)?.[1])
+  const rest = buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 0 })
+  const busy = buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL), pace: 1 })
+  expect(count(rest)).toBe(10)
+  expect(count(busy)).toBe(10)
+  expect(cycle(busy) < cycle(rest) / 2).toBe(true)
 
   const svg = buildScene(CHOSEN_EXTRAS, { pair, sky: skyAt(FULL) })
   // Two copies of the beam: one before the tower, one after its lantern room.
@@ -116,5 +120,7 @@ test('usage sets the meteor rate; pines stand on trunks; the beam passes in fron
   const room = svg.indexOf('class="lamp"')
   expect(back > 0 && back < room && room < front).toBe(true)
   // The front copy shows for the swing back only.
-  expect(svg.includes('@keyframes bf{0%{opacity:0}50%{opacity:1}100%{opacity:1}}')).toBe(true)
+  expect(svg.includes('@keyframes bf{0%{visibility:hidden}50%{visibility:visible}100%{visibility:visible}}')).toBe(true)
+  // No comment in the scene's CSS, which the app can read as a reason to hold it still.
+  expect(/\/\*/.test(svg.match(/<style>(.*?)<\/style>/)?.[1] ?? '')).toBe(false)
 })

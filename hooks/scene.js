@@ -526,10 +526,13 @@ function meteorShower() {
   let out = ''
   let css = ''
 
-  // Usage sets the rate: 10 meteors at rest, up to 30 at a limit's edge, each
-  // returning sooner. Near a real shower's peak, 16 more rain on top.
-  const count = 10 + Math.round(pace * 20) + (now.shower === null ? 0 : 16)
-  const slower = 1.5 - pace
+  // Near a real shower's peak, the margins rain. The count never grows with
+  // usage, since a heavier scene is one the app may hold still.
+  const count = now.shower === null ? 10 : 26
+  // Usage sets the rate instead: each meteor waits less between falls, up to
+  // three times as often at a limit's edge. The fall itself keeps its speed
+  // and its steps, a cell at a time.
+  const sooner = 1 / (1 + 2 * pace)
 
   for (let i = 0; i < count; i++) {
     const isLeft = i % 2 === 0
@@ -538,10 +541,12 @@ function meteorShower() {
     const y = Math.round(h.between(-40, 380))
     // Left ones fall toward the left edge, right ones toward the right.
     const dx = isLeft ? -260 : 260
-    const seconds = round(h.between(5, 11) * slower)
-    const delay = round(h.between(0, 11) * slower)
+    const seconds = round(h.between(5, 11) * sooner)
+    const delay = round(h.between(0, 11) * sooner)
+    const falls = round(14 / sooner)
+    const steps = Math.round(36 / sooner)
 
-    css += `.ms${i}{animation:ms${i} ${seconds}s steps(36) -${delay}s infinite}@keyframes ms${i}{0%{transform:translate(0,0);opacity:1}14%{transform:translate(${dx}px,470px);opacity:0}100%{transform:translate(${dx}px,470px);opacity:0}}`
+    css += `.ms${i}{animation:ms${i} ${seconds}s steps(${steps}) -${delay}s infinite}@keyframes ms${i}{0%{transform:translate(0,0);opacity:1}${falls}%{transform:translate(${dx}px,470px);opacity:0}100%{transform:translate(${dx}px,470px);opacity:0}}`
     out += `<g class="${h.pick(['w', 'w', 'u'])}" transform="translate(${x} ${y})" font-size="16"><g class="ms${i}">${trail(isLeft ? 1 : -1, isLeft ? '/' : '\\')}</g></g>`
   }
 
@@ -692,13 +697,16 @@ function edges({ extras = [] } = {}) {
   return out
 }
 
+// The beam sweeps linearly, at one steady rate, never easing at the sides or
+// the middle. Its hidden copy is out of sight by visibility, not opacity, so
+// the app paints only the one shown.
 const EXTRA_STYLE = `
 .cl{animation:cl 6s ease-in-out infinite}@keyframes cl{0%,100%{stroke-opacity:.45}50%{stroke-opacity:.8}}
 .cs text{animation:cs 4.2s ease-in-out infinite}@keyframes cs{0%,100%{fill-opacity:1}50%{fill-opacity:.5}}
 .ff text{animation:ff 7s ease-in-out infinite}@keyframes ff{0%,100%{transform:translate(0,0);fill-opacity:0}30%{fill-opacity:.9}60%{transform:translate(6px,-22px);fill-opacity:.2}80%{fill-opacity:.8}}
-/* Linear: the beam sweeps at one steady rate, never easing at the sides or the middle. */.beam{animation:beam 9s linear infinite}@keyframes beam{0%{transform:scaleX(1);opacity:.7}25%{transform:scaleX(.01);opacity:.35}50%{transform:scaleX(-1);opacity:.7}75%{transform:scaleX(.01);opacity:.35}100%{transform:scaleX(1);opacity:.7}}
-.bf{opacity:0;animation:bf 9s steps(1) infinite}@keyframes bf{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-.bb{animation:bb 9s steps(1) infinite}@keyframes bb{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
+.beam{animation:beam 9s linear infinite}@keyframes beam{0%{transform:scaleX(1);opacity:.7}25%{transform:scaleX(.01);opacity:.35}50%{transform:scaleX(-1);opacity:.7}75%{transform:scaleX(.01);opacity:.35}100%{transform:scaleX(1);opacity:.7}}
+.bf{visibility:hidden;animation:bf 9s steps(1) infinite}@keyframes bf{0%{visibility:hidden}50%{visibility:visible}100%{visibility:visible}}
+.bb{animation:bb 9s steps(1) infinite}@keyframes bb{0%{visibility:visible}50%{visibility:hidden}100%{visibility:hidden}}
 .lamp text{animation:cs 2.2s ease-in-out infinite}
 .ph{animation:ph 8s ease-in-out infinite}@keyframes ph{0%,100%{opacity:.55}50%{opacity:.95}}
 `.replace(/\n/g, '')
