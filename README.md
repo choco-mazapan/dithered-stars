@@ -1,6 +1,6 @@
 # Dithered stars
 
-A night-sky look for the Claude apps: a sky shaded with an ordered pixel dither, stars drawn in text characters, and a sky that follows the real one: tonight's moon phase, meteor showers near their peak, the season's constellations, and a dusk, night or dawn tint by your clock.
+A night-sky look for the Claude desktop app: a sky shaded with an ordered pixel dither, stars drawn in text characters, and a sky that follows the real one: tonight's moon phase, meteor showers near their peak, the season's constellations, and a dusk, night or dawn tint by your clock.
 
 ### ✦ [Open the live preview](https://choco-mazapan.github.io/dithered-stars/)
 
@@ -35,7 +35,7 @@ In the desktop app, where `/plugin` does not run: click + next to the prompt box
 
 ## What it does
 
-**The sky** (desktop and mobile apps)
+**The sky** (desktop app)
 - The moon in its real phase, lit on the correct side.
 - More meteors in the margins within two days of a major shower's peak (Quadrantids, Lyrids, Perseids, Leonids, Geminids and more).
 - A plum dusk, deep night and blue dawn by your local time; the sky rechecks every ten minutes.
