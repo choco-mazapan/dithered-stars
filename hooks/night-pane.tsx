@@ -202,7 +202,13 @@ export function registerNight(on: On) {
     }
     const opened = await $.ui.open({ id: PANE, title: TITLE })
 
-    return { text: opened.isPlaced ? 'Night watch opened.' : 'Night watch is open; this surface has no room to show it right now.' }
+    if (opened.isPlaced) {
+      return { text: 'Night watch opened.' }
+    }
+    // The engine says why it waits (a narrow window, no surface attached, ...).
+    $.ui.log(`night watch not placed: ${opened.reason}`)
+
+    return { text: `Night watch is open but not drawn yet: ${opened.reason}` }
   })
 
   // /stars is answered in register.tsx, beside the sky it stills.
